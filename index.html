@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>RPG 전투 게임</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 20px;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #monster {
+      width: 150px;
+      margin-top: 20px;
+    }
+    #inventory {
+      margin-top: 30px;
+      display: flex;
+      justify-content: center;
+      gap: 50px;
+    }
+    .inventory-section {
+      background: #e0e0e0;
+      padding: 10px;
+      border-radius: 10px;
+      width: 300px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      margin: 5px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    img {
+      width: 40px;
+      height: 40px;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>RPG 전투 게임</h1>
+
+  <p>🎮 현재 스테이지: <span id="stage">1</span></p>
+
+  <div id="battleStatus">
+    <p>플레이어 HP: <span id="playerHP">100</span> / <span id="playerMaxHP">100</span></p>
+    <p>몬스터 HP: <span id="monsterHP">50</span></p>
+    <p>장착 무기: <span id="equippedWeapon">없음</span></p>
+    <button onclick="attackMonster()">몬스터 공격!</button>
+    <button onclick="usePotion()">힐링 포션 사용!</button>
+    <button onclick="synthesizeWeapons()">검 합성하기</button>
+  </div>
+
+  <img id="monster" src="monster.png" alt="몬스터 이미지" />
+
+  <div id="inventory">
+    <div class="inventory-section">
+      <h3>🗡️ 무기 인벤토리</h3>
+      <ul id="weaponList"></ul>
+    </div>
+    <div class="inventory-section">
+      <h3>🎒 기타 아이템</h3>
+      <ul id="miscList"></ul>
+    </div>
+  </div>
+
+  <script>
+    let stage = 1;
+    let playerMaxHP = 100;
+    let playerHP = playerMaxHP;
+    let monsterHP = 50;
+
+    const inventory = {
+      weapons: [],
+      misc: ["Healing Potion"]
+    };
+
+    const swordGrades = ["허접검", "쓸만한 검", "장인의 검", "용의 비늘", "관우의 이쑤시개", "관우의 채찍"];
+    const swordAttack = {
+      "허접검": 10,
+      "쓸만한 검": 15,
+      "장인의 검": 20,
+      "용의 비늘": 30,
+      "관우의 이쑤시개": 50,
+      "관우의 채찍": 80
+    };
+    const swordImages = {
+      "허접검": "sword_d.png",
+      "쓸만한 검": "sword_c.png",
+      "장인의 검": "sword_b.png",
+      "용의 비늘": "sword_a.png",
+      "관우의 이쑤시개": "sword_s.png",
+      "관우의 채찍": "sword_ss.png"
+    };
+    const miscImages = {
+      "Healing Potion": "healing_potion.png"
+    };
+
+    function getBestWeapon() {
+      let best = null;
+      for (let i = swordGrades.length - 1; i >= 0; i--) {
+        if (inventory.weapons.includes(swordGrades[i])) {
+          best = swordGrades[i];
+          break;
+        }
+      }
+      return best;
+    }
+
+    function getWeaponDamage() {
+      const best = getBestWeapon();
+      return best ? swordAttack[best] : 5; // 기본 공격력 5
+    }
+
+    function attackMonster() {
+      if (playerHP <= 0) {
+        alert("플레이어가 기절했습니다!");
+        return;
+      }
+
+      const damage = getWeaponDamage();
+      monsterHP -= damage;
+      if (monsterHP < 0) monsterHP = 0;
+
+      if (monsterHP === 0) {
+        alert("몬스터 처치! 다음 스테이지로 진입합니다.");
+        stage++;
+        playerMaxHP += 10;
+        playerHP = playerMaxHP;
+        monsterHP = 50 + stage * 10;
+        updateStageDisplay();
+        dropItem();
+      }
+
+      // 몬스터 반격 (스테이지 기반으로 공격력 증가)
+      const monsterDmg = Math.floor(stage * 1.5); // 예: 스테이지 3 → 4~5 데미지
+      playerHP -= monsterDmg;
+      if (playerHP < 0) playerHP = 0;
+
+      updateInventory();
+    }
+
+    function usePotion() {
+      const idx = inventory.misc.indexOf("Healing Potion");
+      if (idx === -1) {
+        alert("힐링 포션이 없습니다!");
+        return;
+      }
+
+      inventory.misc.splice(idx, 1);
+      playerHP += 30;
+      if (playerHP > playerMaxHP) playerHP = playerMaxHP;
+
+      updateInventory();
+      alert("힐링 포션으로 체력을 회복했습니다!");
+    }
+
+    function synthesizeWeapons() {
+      for (let i = 0; i < swordGrades.length - 1; i++) {
+        const current = swordGrades[i];
+        const next = swordGrades[i + 1];
+        const count = inventory.weapons.filter(w => w === current).length;
+
+        if (count >= 3) {
+          let removed = 0;
+          inventory.weapons = inventory.weapons.filter(w => {
+            if (w === current && removed < 3) {
+              removed++;
+              return false;
+            }
+            return true;
+          });
+          inventory.weapons.push(next);
+          alert(`${current} 3개를 합성해 ${next}을(를) 얻었습니다!`);
+          updateInventory();
+          return;
+        }
+      }
+      alert("합성할 수 있는 검이 없습니다.");
+    }
+
+    function dropItem() {
+      const rand = Math.random();
+      let drop;
+
+      if (rand < 0.3) {
+        drop = "Healing Potion"; // 30%
+      } else {
+        drop = "허접검"; // 70%
+      }
+
+      if (swordGrades.includes(drop)) {
+        inventory.weapons.push(drop);
+      } else {
+        inventory.misc.push(drop);
+      }
+
+      updateInventory();
+      alert(`획득한 아이템: ${drop}`);
+    }
+
+    function updateStageDisplay() {
+      document.getElementById("stage").textContent = stage;
+      document.getElementById("playerMaxHP").textContent = playerMaxHP;
+    }
+
+    function updateInventory() {
+      document.getElementById("playerHP").textContent = playerHP;
+      document.getElementById("playerMaxHP").textContent = playerMaxHP;
+      document.getElementById("monsterHP").textContent = monsterHP;
+
+      const weaponList = document.getElementById("weaponList");
+      const miscList = document.getElementById("miscList");
+      const equipped = getBestWeapon();
+
+      document.getElementById("equippedWeapon").textContent = equipped || "없음";
+
+      weaponList.innerHTML = "";
+      miscList.innerHTML = "";
+
+      inventory.weapons.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        const img = document.createElement("img");
+        img.src = swordImages[item] || "default.png";
+        li.appendChild(img);
+        weaponList.appendChild(li);
+      });
+
+      inventory.misc.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        const img = document.createElement("img");
+        img.src = miscImages[item] || "default.png";
+        li.appendChild(img);
+        miscList.appendChild(li);
+      });
+    }
+
+    updateInventory();
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+    
